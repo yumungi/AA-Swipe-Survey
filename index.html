@@ -26,66 +26,175 @@
   </style>
 </head>
 <body>
-  <!-- 0 ▸ Loading -->
+  <!-- 0 ▸ Loading -------------------------------------------------------------- -->
   <div id="page0" class="page active">
     <div class="loader"></div>
     <p id="progressText" style="margin-top:1rem;font-size:.9rem">Loading images…</p>
   </div>
 
+  <!-- 1 ▸ Demographics -------------------------------------------------------- -->
+  <div id="page1" class="page">
+    <h1>Research Survey</h1>
+    <label>Age <input id="age" required></label>
+    <label>Sex <select id="sex" required><option value="">Select…</option><option>Female</option><option>Male</option><option>Other</option></select></label>
+    <label>Year Level <select id="year" required><option value="">Select…</option><option>MD1</option><option>MD2</option><option>MD3</option><option>MD4</option><option>Other</option></select></label>
+    <p style="font-size:.97rem;margin-bottom:.5rem;">
+  This anonymous survey is part of a research study. Participation is voluntary and you can stop at any time. No identifying information is collected.
+</p>
+    <label><input id="consent" type="checkbox"> I consent to participate anonymously</label>
+    <button class="btn" id="demNext">Next</button>
+  </div>
+
+  <!-- 2 ▸ Instructions -------------------------------------------------------- -->
+  <div id="page2" class="page">
+    <h2>Instructions</h2>
+    <p>Swipe <strong>right</strong> to <strong>agree</strong>, left to <strong>disagree</strong>. Please respond quickly and honestly.</p>
+    <button class="btn" id="instNext">Start</button>
+  </div>
+
+  <!-- 3 ▸ Prompt blocks ------------------------------------------------------- -->
+  <div id="page3" class="page"><h2>I think this person looks healthy</h2><button class="btn" id="p1Begin">Show images</button></div>
+  <div id="page4" class="page"><h2>Swipe to respond</h2><div class="image-wrapper"><img id="img1" alt="stimulus"></div></div>
+
+  <div id="page5" class="page"><h2>I think this person looks interesting</h2><button class="btn" id="p2Begin">Show images</button></div>
+  <div id="page6" class="page"><h2>Swipe to respond</h2><div class="image-wrapper"><img id="img2" alt="stimulus"></div></div>
+
+  <div id="page7" class="page"><h2>I think this person looks attractive</h2><button class="btn" id="p3Begin">Show images</button></div>
+  <div id="page8" class="page"><h2>Swipe to respond</h2><div class="image-wrapper"><img id="img3" alt="stimulus"></div></div>
+
+  <!-- 9 ▸ Familiarity ---------------------------------------------------------- -->
+  <div id="page9" class="page">
+    <h2>How familiar are you with Alopecia Areata?</h2>
+    <select id="familiar" required>
+      <option value="">Select…</option>
+      <option>I have never heard of alopecia areata</option>
+      <option>I have heard of alopecia areata, but am not too familiar with it</option>
+      <option>I am familiar with alopecia areata</option>
+      <option>I know someone with alopecia areata</option>
+    </select>
+    <button class="btn" id="famNext">Submit</button>
+  </div>
+
+  <!-- 10 ▸ Thank‑you ---------------------------------------------------------- -->
+  <div id="page10" class="page"><h2>Thank you!</h2><p style="text-align:center;font-size:.9rem">Your responses have been submitted.</p></div>
+
 <script>
-const IMAGES_PER_CAT = 10;
-const TINT_MS = 200;
-const THRESH_PX = 80;
-const ENDPOINT = 'https://script.google.com/macros/s/AKfycbzKHkteb-3CsNFZWe5Vdf9MGyIbFKPssRXq8gC8s3Lcb0t6t798AH_eY2eENmhTekEx/exec';
+/**** CONFIG ****/
+const IMAGES_PER_CAT = 10;                       // alopecia‑x / hair‑x
+const TINT_MS        = 200;                     // tint fade‑out
+const THRESH_PX      = 80;                      // commit distance
+const ENDPOINT       = 'https://script.google.com/macros/s/AKfycbzKHkteb-3CsNFZWe5Vdf9MGyIbFKPssRXq8gC8s3Lcb0t6t798AH_eY2eENmhTekEx/exec';
+/*****************/
 
-const pages = [...document.querySelectorAll('.page')];
-const show = i => pages.forEach((p, idx) => p.classList.toggle('active', idx === i));
-const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+/* Helpers */
+const pages=[...document.querySelectorAll('.page')];
+const show=i=>pages.forEach((p,idx)=>p.classList.toggle('active',idx===i));
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 
-const IMGS = [...Array.from({ length: IMAGES_PER_CAT }, (_, i) => `alopecia${i + 1}.png`),
-              ...Array.from({ length: IMAGES_PER_CAT }, (_, i) => `hair${i + 1}.png`)];
+/* Preload */
+const IMGS=[...Array.from({length:IMAGES_PER_CAT},(_,i)=>`alopecia${i+1}.png`),...Array.from({length:IMAGES_PER_CAT},(_,i)=>`hair${i+1}.png`)];
+let loaded=0;IMGS.forEach(src=>{const img=new Image();img.onload=img.onerror=()=>{loaded++;progressText.textContent=`Loading ${loaded}/${IMGS.length}`;if(loaded===IMGS.length){show(1);init();}};img.src=src;});
 
-let list1 = [], list2 = [], list3 = [], list4 = [];
-let idx1 = 0, idx2 = 0, idx3 = 0, idx4 = 0, startT = 0;
-const demo = { id: uid(), age: '', sex: '', year: '', fam: '' };
-const swipes = [];
+/* State */
+let list1=[],list2=[],list3=[];let idx1=0,idx2=0,idx3=0,startT=0;
+const demo={id:uid(),age:'',sex:'',year:'',fam:''};
+const swipes=[]; // long format rows
 
-function init() {
-  demNext.onclick = () => {
-    if (!consent.checked) { alert('Consent required'); return; }
-    demo.age = age.value.trim(); demo.sex = sex.value; demo.year = year.value;
-    if (!demo.age || !demo.sex || !demo.year) { alert('Complete all fields'); return; }
+function init(){
+  demNext.onclick=()=>{
+    if(!consent.checked){alert('Consent required');return;}
+    demo.age=age.value.trim(); demo.sex=sex.value; demo.year=year.value;
+    if(!demo.age||!demo.sex||!demo.year){alert('Complete all fields');return;}
     show(2);
   };
-  instNext.onclick = () => show(3);
+  instNext.onclick = ()=>show(3);
 
-  p1Begin.onclick = () => startBlock(1, 'I would like to be friends with this person', img1, list1, 4);
-  p2Begin.onclick = () => startBlock(2, 'I would like to work with this person', img2, list2, 6);
-  p3Begin.onclick = () => startBlock(3, 'I feel sorry for this person', img3, list3, 8);
-  p4Begin.onclick = () => startBlock(4, 'I think this person is in control', img4, list4, 10);
+  p1Begin.onclick = ()=>startBlock(1,'Friends',img1,list1,4);
+  p2Begin.onclick = ()=>startBlock(2,'Work',   img2,list2,6);
+  p3Begin.onclick = ()=>startBlock(3,'Sorry',  img3,list3,8);
 
-  famNext.onclick = () => {
-    if (!familiar.value) { alert('Select familiarity'); return; }
-    demo.fam = familiar.value;
+  famNext.onclick = ()=>{
+    if(!familiar.value){alert('Select familiarity');return;}
+    demo.fam=familiar.value;
     upload();
   };
 }
 
-// Preload images AFTER init is defined
-let loaded = 0;
-IMGS.forEach(src => {
-  const img = new Image();
-  img.onload = img.onerror = () => {
-    loaded++;
-    progressText.textContent = `Loading ${loaded}/${IMGS.length}`;
-    if (loaded === IMGS.length) {
-      show(1);
-      init();
+function startBlock(num,label,imgEl,list,showIdx){
+  list.length=0; list.push(...shuffle([...IMGS]));
+  if(num===1){list1=list;} if(num===2){list2=list;} if(num===3){list3=list;}
+  if(num===1) idx1=0; if(num===2) idx2=0; if(num===3) idx3=0;
+  imgEl.src=list[0];
+  startT=performance.now();
+  attachSwipe(imgEl,label,num);
+  show(showIdx);
+}
+
+function attachSwipe(imgEl,prompt,setIdx){
+  const mc=new Hammer(imgEl);
+  mc.get('pan').set({direction:Hammer.DIRECTION_HORIZONTAL,threshold:0});
+
+  mc.on('panmove',ev=>{
+    imgEl.style.transform=`translate(${ev.deltaX}px,${-Math.abs(ev.deltaX)*0.2}px) rotate(${ev.deltaX*0.05}deg)`;
+    if(ev.deltaX>0){document.body.classList.add('tint-right');document.body.classList.remove('tint-left');}
+    else if(ev.deltaX<0){document.body.classList.add('tint-left');document.body.classList.remove('tint-right');}
+  });
+
+  mc.on('panend',ev=>{
+    setTimeout(()=>document.body.classList.remove('tint-left','tint-right'),TINT_MS);
+    if(Math.abs(ev.deltaX)<THRESH_PX){
+      imgEl.style.transition='transform .25s';
+      imgEl.style.transform='translate(0,0)';
+      imgEl.addEventListener('transitionend',()=>imgEl.style.transition='',{once:true});
+      return;
     }
-  };
-  img.src = src;
-});
+    const agree = ev.deltaX>0;
+    const row   = {
+      id:       demo.id,
+      age:      demo.age,
+      sex:      demo.sex,
+      year:     demo.year,
+      familiar: demo.fam, // may be empty; filled later
+      prompt,
+      image:    imgEl.src.split('/').pop(),
+      direction:agree?'agree':'disagree',
+      rt:       Math.round(performance.now()-startT)
+    };
+    swipes.push(row);
+
+    const finalX=agree?window.innerWidth:-window.innerWidth;
+    imgEl.style.transition='transform .45s';
+    imgEl.style.transform=`translate(${finalX}px,-${window.innerHeight*0.4}px) rotate(${agree?40:-40}deg)`;
+    imgEl.addEventListener('transitionend',()=>{
+      imgEl.style.transition='';imgEl.style.transform='translate(0,0)';nextImage(setIdx,imgEl);
+    },{once:true});
+  });
+}
+
+function nextImage(setIdx,imgEl){
+  if(setIdx===1){
+    idx1++; if(idx1>=list1.length){show(5); return;}
+    imgEl.src=list1[idx1]; startT=performance.now();
+  }else if(setIdx===2){
+    idx2++; if(idx2>=list2.length){show(7); return;}
+    imgEl.src=list2[idx2]; startT=performance.now();
+  }else{
+    idx3++; if(idx3>=list3.length){show(9); return;}
+    imgEl.src=list3[idx3]; startT=performance.now();
+  }
+}
+
+function upload() {
+  swipes.forEach(r => r.familiar = demo.fam);   // fill in familiarity
+
+  fetch(ENDPOINT, {
+    method: 'POST',
+    mode:   'no-cors',                // ← bypass CORS pre-flight
+    body:   JSON.stringify({ swipes })// ← raw body, no header
+  })
+  .finally(() => show(10));           // always go to “Thank-you”
+}
 </script>
 </body>
 </html>
