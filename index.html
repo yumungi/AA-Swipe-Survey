@@ -1,4 +1,4 @@
-<!-- swipe-survey.html (LONG format to Firestore) -->
+<!-- index.html with Firestore session-based export -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,8 +7,8 @@
   <title>Swipe‑Bias Survey</title>
   <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js';
-    import { getFirestore, collection, addDoc } from 'https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js';
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCYTv_RLff8abLzKKVs7MKwkBRkuze_i34",
@@ -22,9 +22,44 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    window.FB_DB = db; // expose globally for inline script use
+
+    window.upload = async function () {
+      const sessionData = {
+        id: demo.id,
+        age: demo.age,
+        sex: demo.sex,
+        year: demo.year,
+        familiar: demo.fam,
+        timestamp: serverTimestamp(),
+        swipes: swipes
+      };
+      try {
+        await addDoc(collection(db, "surveySessions"), sessionData);
+        show(12);
+      } catch (err) {
+        alert("Upload failed. Check console.");
+        console.error(err);
+      }
+    };
   </script>
-  <style>/* styles stay unchanged */</style>
+  <style>
+    :root{font-family:system-ui,Arial,sans-serif}
+    html,body{height:100%;margin:0;overflow:hidden;touch-action:pan-x;overscroll-behavior:none}
+    body{display:flex;justify-content:center;align-items:center;background:#f9fafb;transition:background-color .25s}
+    body.tint-left{background:rgba(239,68,68,.25)}
+    body.tint-right{background:rgba(34,197,94,.25)}
+    .page{display:none;width:100%;max-width:420px;padding:1.5rem;box-sizing:border-box}
+    .active{display:block}
+    h1,h2{text-align:center;margin:0 0 .75rem}
+    label{display:block;margin:.5rem 0 .25rem}
+    input,select{width:100%;padding:.5rem;border:1px solid #d1d5db;border-radius:6px;font-size:.95rem}
+    .btn{display:block;margin:1.25rem auto 0;padding:.6rem 1.5rem;background:#2563eb;color:#fff;border:none;border-radius:6px;font-size:1rem;cursor:pointer;text-align:center}
+    .image-wrapper{position:relative;width:100%;height:420px;margin-top:.5rem;overflow:hidden}
+    .image-wrapper img{width:100%;height:100%;object-fit:cover;border-radius:12px;touch-action:none}
+    #loadingScreen{display:flex;flex-direction:column;align-items:center;justify-content:center}
+    .loader{width:64px;height:64px;border:8px solid #e5e7eb;border-top:8px solid #2563eb;border-radius:50%;animation:spin 1s linear infinite}
+    @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+  </style>
 </head>
 <body>
   <!-- 0 ▸ Loading -->
@@ -87,103 +122,84 @@
   <div id="page12" class="page"><h2>Thank you!</h2><p style="text-align:center;font-size:.9rem">Your responses have been submitted.</p></div>
 
 <script>
-const IMAGES_PER_CAT = 5;
-const TINT_MS = 200;
-const THRESH_PX = 80;
+    // JS logic (unchanged core logic)
+    const pages = [...document.querySelectorAll('.page')];
+    const show = i => pages.forEach((p, idx) => p.classList.toggle('active', idx === i));
+    const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
-const pages=[...document.querySelectorAll('.page')];
-const show=i=>pages.forEach((p,idx)=>p.classList.toggle('active',idx===i));
-const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a};
-const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+    const IMGS = [...Array.from({ length: 10 }, (_, i) => `alopecia${i + 1}.png`), ...Array.from({ length: 10 }, (_, i) => `hair${i + 1}.png`)];
+    let loaded = 0; IMGS.forEach(src => { const img = new Image(); img.onload = img.onerror = () => { loaded++; progressText.textContent = `Loading ${loaded}/${IMGS.length}`; if (loaded === IMGS.length) { show(1); init(); } }; img.src = src; });
 
-const IMGS=[...Array.from({length:IMAGES_PER_CAT},(_,i)=>`alopecia-${i+1}.jpg`),...Array.from({length:IMAGES_PER_CAT},(_,i)=>`hair-${i+1}.jpg`)];
-let loaded=0;IMGS.forEach(src=>{const img=new Image();img.onload=img.onerror=()=>{loaded++;progressText.textContent=`Loading ${loaded}/${IMGS.length}`;if(loaded===IMGS.length){show(1);init();}};img.src=src;});
+    let list1 = [], list2 = [], list3 = [], list4 = [];
+    let idx1 = 0, idx2 = 0, idx3 = 0, idx4 = 0, startT = 0;
+    const demo = { id: uid(), age: '', sex: '', year: '', fam: '' };
+    const swipes = [];
 
-let list1=[],list2=[],list3=[],list4=[];
-let idx1=0,idx2=0,idx3=0,idx4=0,startT=0;
-const demo={id:uid(),age:'',sex:'',year:'',fam:''};
-const swipes=[];
-
-function init(){
-  demNext.onclick=()=>{
-    if(!consent.checked){alert('Consent required');return;}
-    demo.age=age.value.trim(); demo.sex=sex.value; demo.year=year.value;
-    if(!demo.age||!demo.sex||!demo.year){alert('Complete all fields');return;}
-    show(2);
-  };
-  instNext.onclick = ()=>show(3);
-  p1Begin.onclick = ()=>startBlock(1,'Friends',img1,list1,4);
-  p2Begin.onclick = ()=>startBlock(2,'Work',img2,list2,6);
-  p3Begin.onclick = ()=>startBlock(3,'Sorry',img3,list3,8);
-  p4Begin.onclick = ()=>startBlock(4,'In Control',img4,list4,10);
-  famNext.onclick = ()=>{
-    if(!familiar.value){alert('Select familiarity');return;}
-    demo.fam=familiar.value;
-    upload();
-  };
-}
-
-function startBlock(num,label,imgEl,list,showIdx){
-  list.length=0; list.push(...shuffle([...IMGS]));
-  if(num===1){list1=list;} if(num===2){list2=list;} if(num===3){list3=list;} if(num===4){list4=list;}
-  if(num===1) idx1=0; if(num===2) idx2=0; if(num===3) idx3=0; if(num===4) idx4=0;
-  imgEl.src=list[0];
-  startT=performance.now();
-  attachSwipe(imgEl,label,num);
-  show(showIdx);
-}
-
-function attachSwipe(imgEl,prompt,setIdx){
-  const mc=new Hammer(imgEl);
-  mc.get('pan').set({direction:Hammer.DIRECTION_HORIZONTAL,threshold:0});
-  mc.on('panmove',ev=>{
-    imgEl.style.transform=`translate(${ev.deltaX}px,${-Math.abs(ev.deltaX)*0.2}px) rotate(${ev.deltaX*0.05}deg)`;
-    if(ev.deltaX>0){document.body.classList.add('tint-right');document.body.classList.remove('tint-left');}
-    else if(ev.deltaX<0){document.body.classList.add('tint-left');document.body.classList.remove('tint-right');}
-  });
-  mc.on('panend',ev=>{
-    setTimeout(()=>document.body.classList.remove('tint-left','tint-right'),TINT_MS);
-    if(Math.abs(ev.deltaX)<THRESH_PX){
-      imgEl.style.transition='transform .25s';
-      imgEl.style.transform='translate(0,0)';
-      imgEl.addEventListener('transitionend',()=>imgEl.style.transition='',{once:true});
-      return;
+    function init() {
+      demNext.onclick = () => {
+        if (!consent.checked) { alert('Consent required'); return; }
+        demo.age = age.value.trim(); demo.sex = sex.value; demo.year = year.value;
+        if (!demo.age || !demo.sex || !demo.year) { alert('Complete all fields'); return; }
+        show(2);
+      };
+      instNext.onclick = () => show(3);
+      p1Begin.onclick = () => startBlock(1, 'Friends', img1, list1, 4);
+      p2Begin.onclick = () => startBlock(2, 'Work', img2, list2, 6);
+      p3Begin.onclick = () => startBlock(3, 'Sorry', img3, list3, 8);
+      p4Begin.onclick = () => startBlock(4, 'In Control', img4, list4, 10);
+      famNext.onclick = () => {
+        if (!familiar.value) { alert('Select familiarity'); return; }
+        demo.fam = familiar.value;
+        swipes.forEach(r => r.familiar = demo.fam);
+        upload();
+      };
     }
-    const agree = ev.deltaX>0;
-    const row = {
-      id:demo.id, age:demo.age, sex:demo.sex, year:demo.year,
-      familiar:demo.fam, prompt, image:imgEl.src.split('/').pop(),
-      direction:agree?'agree':'disagree', rt:Math.round(performance.now()-startT),
-      timestamp: new Date().toISOString()
-    };
-    swipes.push(row);
-    const finalX=agree?window.innerWidth:-window.innerWidth;
-    imgEl.style.transition='transform .45s';
-    imgEl.style.transform=`translate(${finalX}px,-${window.innerHeight*0.4}px) rotate(${agree?40:-40}deg)`;
-    imgEl.addEventListener('transitionend',()=>{
-      imgEl.style.transition='';imgEl.style.transform='translate(0,0)';nextImage(setIdx,imgEl);
-    },{once:true});
-  });
-}
 
-async function upload(){
-  swipes.forEach(r=>r.familiar=demo.fam);
-  try {
-    const db = window.FB_DB;
-    const coll = firebase.firestore().collection("responses");
-    for(const row of swipes){
-      await addDoc(collection(db, "responses"), row);
+    function startBlock(num, label, imgEl, list, showIdx) {
+      list.length = 0; list.push(...shuffle([...IMGS]));
+      if (num === 1) { list1 = list; idx1 = 0; }
+      if (num === 2) { list2 = list; idx2 = 0; }
+      if (num === 3) { list3 = list; idx3 = 0; }
+      if (num === 4) { list4 = list; idx4 = 0; }
+      imgEl.src = list[0]; startT = performance.now();
+      attachSwipe(imgEl, label, num); show(showIdx);
     }
-  } catch(e){ console.error('Upload failed', e); }
-  finally { show(12); }
-}
 
-function nextImage(setIdx,imgEl){
-  if(setIdx===1){ idx1++; if(idx1>=list1.length){show(5); return;} imgEl.src=list1[idx1]; startT=performance.now(); }
-  else if(setIdx===2){ idx2++; if(idx2>=list2.length){show(7); return;} imgEl.src=list2[idx2]; startT=performance.now(); }
-  else if(setIdx===3){ idx3++; if(idx3>=list3.length){show(9); return;} imgEl.src=list3[idx3]; startT=performance.now(); }
-  else{ idx4++; if(idx4>=list4.length){show(11); return;} imgEl.src=list4[idx4]; startT=performance.now(); }
-}
-</script>
+    function attachSwipe(imgEl, prompt, setIdx) {
+      const mc = new Hammer(imgEl);
+      mc.get('pan').set({ direction: Hammer.DIRECTION_HORIZONTAL, threshold: 0 });
+      mc.on('panmove', ev => {
+        imgEl.style.transform = `translate(${ev.deltaX}px,${-Math.abs(ev.deltaX) * 0.2}px) rotate(${ev.deltaX * 0.05}deg)`;
+        if (ev.deltaX > 0) document.body.classList.add('tint-right'), document.body.classList.remove('tint-left');
+        else if (ev.deltaX < 0) document.body.classList.add('tint-left'), document.body.classList.remove('tint-right');
+      });
+      mc.on('panend', ev => {
+        setTimeout(() => document.body.classList.remove('tint-left', 'tint-right'), 200);
+        if (Math.abs(ev.deltaX) < 80) {
+          imgEl.style.transition = 'transform .25s';
+          imgEl.style.transform = 'translate(0,0)';
+          imgEl.addEventListener('transitionend', () => imgEl.style.transition = '', { once: true });
+          return;
+        }
+        const agree = ev.deltaX > 0;
+        const row = { id: demo.id, age: demo.age, sex: demo.sex, year: demo.year, familiar: demo.fam, prompt, image: imgEl.src.split('/').pop(), direction: agree ? 'agree' : 'disagree', rt: Math.round(performance.now() - startT) };
+        swipes.push(row);
+        const finalX = agree ? window.innerWidth : -window.innerWidth;
+        imgEl.style.transition = 'transform .45s';
+        imgEl.style.transform = `translate(${finalX}px,-${window.innerHeight * 0.4}px) rotate(${agree ? 40 : -40}deg)`;
+        imgEl.addEventListener('transitionend', () => {
+          imgEl.style.transition = ''; imgEl.style.transform = 'translate(0,0)'; nextImage(setIdx, imgEl);
+        }, { once: true });
+      });
+    }
+
+    function nextImage(setIdx, imgEl) {
+      if (setIdx === 1) { idx1++; if (idx1 >= list1.length) { show(5); return; } imgEl.src = list1[idx1]; startT = performance.now(); }
+      else if (setIdx === 2) { idx2++; if (idx2 >= list2.length) { show(7); return; } imgEl.src = list2[idx2]; startT = performance.now(); }
+      else if (setIdx === 3) { idx3++; if (idx3 >= list3.length) { show(9); return; } imgEl.src = list3[idx3]; startT = performance.now(); }
+      else { idx4++; if (idx4 >= list4.length) { show(11); return; } imgEl.src = list4[idx4]; startT = performance.now(); }
+    }
+  </script>
 </body>
 </html>
