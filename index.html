@@ -86,7 +86,7 @@
   <div id="page12" class="page"><h2>Thank you!</h2><p style="text-align:center;font-size:.9rem">Your responses have been submitted.</p></div>
 
 <script>
-const IMAGES_PER_CAT = 5;
+const IMAGES_PER_CAT = 10;
 const TINT_MS = 200;
 const THRESH_PX = 80;
 const ENDPOINT = 'https://script.google.com/macros/s/AKfycbzKHkteb-3CsNFZWe5Vdf9MGyIbFKPssRXq8gC8s3Lcb0t6t798AH_eY2eENmhTekEx/exec';
@@ -96,7 +96,7 @@ const show=i=>pages.forEach((p,idx)=>p.classList.toggle('active',idx===i));
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 
-const IMGS=[...Array.from({length:IMAGES_PER_CAT},(_,i)=>`alopecia-${i+1}.jpg`),...Array.from({length:IMAGES_PER_CAT},(_,i)=>`hair-${i+1}.jpg`)];
+const IMGS=[...Array.from({length:IMAGES_PER_CAT},(_,i)=>`alopecia${i+1}.png`),...Array.from({length:IMAGES_PER_CAT},(_,i)=>`hair${i+1}.png`)];
 let loaded=0;IMGS.forEach(src=>{const img=new Image();img.onload=img.onerror=()=>{loaded++;progressText.textContent=`Loading ${loaded}/${IMGS.length}`;if(loaded===IMGS.length){show(1);init();}};img.src=src;});
 
 let list1=[],list2=[],list3=[],list4=[];
