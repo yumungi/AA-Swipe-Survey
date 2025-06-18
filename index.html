@@ -43,10 +43,36 @@ const show = i => pages.forEach((p, idx) => p.classList.toggle('active', idx ===
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
-// UPDATED image file names to .webp
 const IMGS = [...Array.from({ length: IMAGES_PER_CAT }, (_, i) => `alopecia${i + 1}.png`),
               ...Array.from({ length: IMAGES_PER_CAT }, (_, i) => `hair${i + 1}.png`)];
 
+let list1 = [], list2 = [], list3 = [], list4 = [];
+let idx1 = 0, idx2 = 0, idx3 = 0, idx4 = 0, startT = 0;
+const demo = { id: uid(), age: '', sex: '', year: '', fam: '' };
+const swipes = [];
+
+function init() {
+  demNext.onclick = () => {
+    if (!consent.checked) { alert('Consent required'); return; }
+    demo.age = age.value.trim(); demo.sex = sex.value; demo.year = year.value;
+    if (!demo.age || !demo.sex || !demo.year) { alert('Complete all fields'); return; }
+    show(2);
+  };
+  instNext.onclick = () => show(3);
+
+  p1Begin.onclick = () => startBlock(1, 'I would like to be friends with this person', img1, list1, 4);
+  p2Begin.onclick = () => startBlock(2, 'I would like to work with this person', img2, list2, 6);
+  p3Begin.onclick = () => startBlock(3, 'I feel sorry for this person', img3, list3, 8);
+  p4Begin.onclick = () => startBlock(4, 'I think this person is in control', img4, list4, 10);
+
+  famNext.onclick = () => {
+    if (!familiar.value) { alert('Select familiarity'); return; }
+    demo.fam = familiar.value;
+    upload();
+  };
+}
+
+// Preload images AFTER init is defined
 let loaded = 0;
 IMGS.forEach(src => {
   const img = new Image();
